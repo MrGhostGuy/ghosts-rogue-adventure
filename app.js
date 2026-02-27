@@ -57,6 +57,8 @@ rate:Math.max(2,Math.round(base.rate*(1-rar*0.05))),reload:Math.max(15,Math.roun
 mag:base.mag+ri(0,rar*2),spread:base.spread,bullets:base.bullets,spd:base.spd+rar*0.3,
 color:base.color,snd:base.snd,rarity:rar,ammo:base.mag+ri(0,rar*2),reloading:0};
 if(base.explode)g.explode=1;if(base.chain)g.chain=1;if(base.pierce)g.pierce=1;if(base.burn)g.burn=1;
+if(rar>=2&&Math.random()<0.3){var elems=["Freezing","Lightning","Fire","Corrosion"];var elemClrs=["#0ff","#ff0","#f40","#0f0"];var ei=ri(0,elems.length-1);g.element=elems[ei];g.elemColor=elemClrs[ei];g.name=g.element+" "+g.name;if(g.element==="Freezing"){g.slow=0.5;g.slowDur=120;}if(g.element==="Lightning"){g.chain=1;g.chainDmg=Math.round(g.dmg*0.4);}if(g.element==="Fire"){g.burn=1;g.burnDmg=Math.round(g.dmg*0.2);}if(g.element==="Corrosion"){g.corrode=1;g.corrodeMult=1.15;}}
+if(rar>=2&&Math.random()<0.4){var bonuses=["Fast Reload","Rapid Fire","Piercing","Big Mag","High Velocity"];var bi=ri(0,bonuses.length-1);g.bonus=bonuses[bi];if(g.bonus==="Fast Reload"){g.reload=Math.max(8,Math.round(g.reload*0.6));}if(g.bonus==="Rapid Fire"){g.rate=Math.max(1,Math.round(g.rate*0.6));}if(g.bonus==="Piercing"){g.pierce=1;}if(g.bonus==="Big Mag"){g.mag=Math.round(g.mag*1.8);g.ammo=g.mag;}if(g.bonus==="High Velocity"){g.spd=g.spd*1.5;g.dmg=Math.round(g.dmg*1.2);}}
 return g;}
 function giveStartGun(){p.guns[0]=makeGun(1);p.guns[0].rarity=0;p.guns[0].name='Revolver';p.guns[0].dmg=8;}
 
@@ -148,8 +150,8 @@ nearItem=null;return;}
 if(nearItem.type==='health'){p.hp=Math.min(p.hp+nearItem.val,p.maxHp);drops.splice(drops.indexOf(nearItem),1);nearItem=null;return;}
                      }
 // Chest opening
-function openChest(c){var g=makeGun(round);
-drops.push({x:c.x,y:c.y,type:'weapon',gun:g,glow:0});
+function openChest(c){var g=makeGun(round);drops.push({x:c.x,y:c.y,type:'weapon',gun:g,glow:0});
+if(Math.random()<0.5){if(Math.random()<0.6){drops.push({x:c.x+ri(-20,20),y:c.y+ri(-20,20),type:'health',val:Math.round(p.maxHp*0.3),glow:0});}else{var bg=makeGun(round);drops.push({x:c.x+ri(-20,20),y:c.y+ri(-20,20),type:'weapon',gun:bg,glow:0});}}
 chests.splice(chests.indexOf(c),1);}
 // Reset game
 function resetGame(){
@@ -229,6 +231,9 @@ function hitEnemy(e,dmg,b){
 if(e.phase&&Math.random()<0.3){dmgNums.push({x:e.x,y:e.y-e.r,val:'PHASE',life:25,color:'#0ff'});return;}
 if(e.armor>0){dmg=Math.max(1,Math.round(dmg*(1-e.armor)));}
 e.hp-=dmg;e.flash=6;
+if(gun&&gun.slow){e.slowT=gun.slowDur||120;e.slowMult=gun.slow||0.5;}
+if(gun&&gun.corrode){e.corrodeMult=(e.corrodeMult||1)*(gun.corrodeMult||1.15);}
+if(gun&&gun.burn&&gun.burnDmg){e.burnT=180;e.burnDmg=gun.burnDmg;}
 dmgNums.push({x:e.x,y:e.y-e.r,val:dmg,life:30,color:'#fff'});
 if(b&&b.burn){e.burnT=120;}
 if(b&&b.chain&&enemies.length>1){
@@ -241,7 +246,9 @@ function killEnemy(e){
 var idx=enemies.indexOf(e);if(idx>=0)enemies.splice(idx,1);
 if(e.type==='splitter'){for(var si=0;si<2;si++){var sa=rng(0,Math.PI*2);spawnEnemy('splitling',e.x+Math.cos(sa)*15,e.y+Math.sin(sa)*15);}}
 xpOrbs.push({x:e.x,y:e.y,val:e.type==='boss'?50:e.type==='mini'?20:5+round});
-if(Math.random()<0.03){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
+if(Math.random()<0.08){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
+var wdc=e.type==='boss'?0.25:e.type==='mini'?0.15:0.08;if(Math.random()<wdc){var dg=makeGun(round);drops.push({x:e.x,y:e.y,type:'weapon',gun:dg,glow:0});}
+var cdc=e.type==='boss'?0.20:0.05;if(Math.random()<cdc){chests.push({x:e.x,y:e.y,glow:0});}
 if(perks.indexOf('vamp')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.02),p.maxHp);}
 for(var i=0;i<3;i++){particles.push({x:e.x,y:e.y,vx:rng(-2,2),vy:rng(-2,2),life:15,color:e.color,r:2});}}
 
@@ -288,7 +295,7 @@ if(pp.poison&&dist(p,pp)<pp.r&&p.invT<=0&&frame%20===0){damagePlayer(2);}}}
 function updateRound(){
 if(enemies.length===0&&waveSpawned){
 roundClear=true;waveSpawned=false;roundTimer=90;
-if(round%3===0&&Math.random()<0.6){
+if(round%2===0&&Math.random()<0.8){
 chests.push({x:rng(50,ARENA_W-50),y:rng(50,ARENA_H-50),glow:0});}
 if(round===20){state='victory';return;}}
 if(roundClear){roundTimer--;if(roundTimer<=0){round++;roundClear=false;spawnWave();}}}
@@ -434,6 +441,8 @@ X.fillStyle=RARITY_CLR[gun.rarity];X.font='bold 7px sans-serif';
 X.fillText(gun.name,130,10);
 X.fillStyle='#fff';X.font='6px sans-serif';
 X.fillText(RARITY[gun.rarity]+' DMG:'+gun.dmg,130,19);
+if(gun.element){X.fillStyle=gun.elemColor||'#fff';X.fillText(gun.element,130,33);}
+if(gun.bonus){X.fillStyle='#ff0';X.fillText(gun.bonus,130,gun.element?45:33);}
 X.fillText('Ammo:'+gun.ammo+'/'+gun.mag,130,27);
 if(gun.reloading>0){X.fillStyle='#fa0';X.fillText('RELOADING',130,35);}}
 // Second gun indicator
