@@ -76,7 +76,7 @@ if(base.explode)g.explode=1;if(base.chain)g.chain=1;if(base.pierce)g.pierce=1;if
 if(rar>=2&&Math.random()<0.3){var elems=["Freezing","Lightning","Fire","Corrosion"];var elemClrs=["#0ff","#ff0","#f40","#0f0"];var ei=ri(0,elems.length-1);g.element=elems[ei];g.elemColor=elemClrs[ei];g.name=g.element+" "+g.name;if(g.element==="Freezing"){g.slow=0.5;g.slowDur=120;}if(g.element==="Lightning"){g.chain=1;g.chainDmg=Math.round(g.dmg*0.4);}if(g.element==="Fire"){g.burn=1;g.burnDmg=Math.round(g.dmg*0.2);}if(g.element==="Corrosion"){g.corrode=1;g.corrodeMult=1.15;}}
 if(rar>=2&&Math.random()<0.4){var bonuses=["Fast Reload","Rapid Fire","Piercing","Big Mag","High Velocity"];var bi=ri(0,bonuses.length-1);g.bonus=bonuses[bi];if(g.bonus==="Fast Reload"){g.reload=Math.max(8,Math.round(g.reload*0.6));}if(g.bonus==="Rapid Fire"){g.rate=Math.max(1,Math.round(g.rate*0.6));}if(g.bonus==="Piercing"){g.pierce=1;}if(g.bonus==="Big Mag"){g.mag=Math.round(g.mag*1.8);g.ammo=g.mag;}if(g.bonus==="High Velocity"){g.spd=g.spd*1.5;g.dmg=Math.round(g.dmg*1.2);}}
 return g;}
-function giveStartGun(){p.guns[0]=makeGun(1);p.guns[0].rarity=0;p.guns[0].name='Revolver';p.guns[0].dmg=8;}
+function giveStartGun(){var base=GUNS[0];p.guns[0]={name:base.name,dmg:base.dmg,rate:base.rate,reload:base.reload,mag:base.mag,spread:base.spread,bullets:base.bullets,spd:base.spd,color:base.color,snd:base.snd,ammo:base.mag,reloading:0,rarity:0};}
 
 // Enemy spawning
 function spawnEnemy(type,x,y){
@@ -141,7 +141,7 @@ if(state==='title'){state='play';resetGame();return;}
 if(state==='gameover'){state='title';return;}
 if(state==='victory'){state='title';return;}
 if(upgradeUI){
-var opts=['HP','SPD','DODGE','DMG'];
+var opts=curUpgradeOpts;
 for(var i=0;i<opts.length;i++){var by=100+i*35;
 if(t.x>30&&t.x<210&&t.y>by&&t.y<by+28){
 var uid=opts[i].id;
