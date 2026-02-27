@@ -205,7 +205,7 @@ gun.ammo--;p.fireTimer=gun.rate;}
 // Level up
 function checkLevelUp(){
 while(p.xp>=p.xpReq&&p.lvl<MAX_LVL){
-p.xp-=p.xpReq;p.lvl++;p.xpReq=Math.floor(20*Math.pow(1.12,p.lvl-1));
+p.xp-=p.xpReq;p.lvl++;p.xpReq=Math.floor(20*Math.pow(1.12,p.lvl-1)+3*(p.lvl-1));
 p.maxHp+=4;p.hp=Math.min(p.hp+4,p.maxHp);
 p.maxSh+=2;p.sh=Math.min(p.sh+2,p.maxSh);
 p.dmg+=0.01;p.upgPts++;
