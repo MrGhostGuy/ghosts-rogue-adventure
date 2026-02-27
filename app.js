@@ -129,7 +129,7 @@ if(t.x>30&&t.x<210&&t.y>by&&t.y<by+28){
 if(i===0){p.maxHp+=8;p.hp=Math.min(p.hp+8,p.maxHp);}
 if(i===1){p.spd+=0.08;}
 if(i===2){p.dodge=Math.min(p.dodge+0.02,0.4);}
-if(i===3){p.dmg+=0.05;}
+if(i===3){p.dmg+=0.5;}
 p.upgPts--;if(p.upgPts<=0)upgradeUI=false;return;}}return;}
 if(perkUI){
 for(var i=0;i<3&&i<selectedPerks.length;i++){var by=90+i*50;
@@ -146,7 +146,7 @@ var old=p.guns[slot];p.guns[slot]=nearItem.gun;
 if(old){nearItem.gun=old;}else{drops.splice(drops.indexOf(nearItem),1);}
 nearItem=null;return;}
 if(nearItem.type==='health'){p.hp=Math.min(p.hp+nearItem.val,p.maxHp);drops.splice(drops.indexOf(nearItem),1);nearItem=null;return;}
-if(nearItem.type==='shield'){p.sh=Math.min(p.sh+nearItem.val,p.maxSh);drops.splice(drops.indexOf(nearItem),1);nearItem=null;return;}}
+                     }
 // Chest opening
 function openChest(c){var g=makeGun(round);
 drops.push({x:c.x,y:c.y,type:'weapon',gun:g,glow:0});
@@ -238,8 +238,7 @@ if(e.hp<=0){killEnemy(e);}}
 function killEnemy(e){
 var idx=enemies.indexOf(e);if(idx>=0)enemies.splice(idx,1);
 xpOrbs.push({x:e.x,y:e.y,val:e.type==='boss'?50:e.type==='mini'?20:5+round});
-if(Math.random()<0.08){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
-if(Math.random()<0.05){drops.push({x:e.x,y:e.y,type:'shield',val:Math.round(p.maxSh*0.2),glow:0});}
+if(Math.random()<0.03){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
 if(perks.indexOf('vamp')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.02),p.maxHp);}
 for(var i=0;i<3;i++){particles.push({x:e.x,y:e.y,vx:rng(-2,2),vy:rng(-2,2),life:15,color:e.color,r:2});}}
 
@@ -523,7 +522,7 @@ X.fillText('LEVEL UP!',W/2,50);
 X.fillStyle='#fff';X.font='8px sans-serif';
 X.fillText('Choose an upgrade ('+p.upgPts+' pts)',W/2,70);
 var opts=[{n:'+ MAX HP',d:'+8 HP',c:'#f44'},{n:'+ SPEED',d:'+0.08 SPD',c:'#4f4'},
-{n:'+ DODGE',d:'+2% Dodge',c:'#4ff'},{n:'+ DAMAGE',d:'+0.05 DMG',c:'#fa0'}];
+{n:'+ DODGE',d:'+2% Dodge',c:'#4ff'},{n:'+ DAMAGE',d:'+0.5 DMG',c:'#fa0'}];
 for(var i=0;i<4;i++){var by=100+i*35;
 X.fillStyle='#222';X.fillRect(30,by,180,28);
 X.strokeStyle=opts[i].c;X.strokeRect(30,by,180,28);
