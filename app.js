@@ -12,7 +12,7 @@ var RARITY_CHANCE=[0.45,0.28,0.15,0.08,0.04];
 // Player state
 var p={x:400,y:400,r:8,hp:100,maxHp:100,sh:0,maxSh:30,spd:1.8,dmg:1,dodge:0,
 lvl:1,xp:0,xpReq:20,upgPts:0,perkPts:0,lives:2,magnet:40,
-guns:[null,null],curGun:0,fireTimer:0,invT:0};
+guns:[null,null],curGun:0,fireTimer:0,invT:0,crit:0.05,critMult:1.5,armor:0,hpRegen:0,luck:0,reloadSpd:0};
 
 // Weapon definitions
 var GUNS=[
@@ -34,6 +34,7 @@ var round=1,enemiesLeft=0,roundClear=true,roundTimer=0,waveSpawned=false;
 var joy={active:false,sx:0,sy:0,cx:0,cy:0,dx:0,dy:0};
 var swapBtn={x:205,y:252,r:18};
 var nearItem=null,upgradeUI=false,perkUI=false,pauseGame=false;
+var curUpgradeOpts=[];
 var perks=[],selectedPerks=[];
 var PERK_LIST=[
 {name:'Magnetism+',desc:'XP range +30%',fn:function(){p.magnet*=1.3}},
@@ -43,7 +44,22 @@ var PERK_LIST=[
 {name:'Thick Skin',desc:'Max HP +25',fn:function(){p.maxHp+=25;p.hp+=25}},
 {name:'Quick Reload',desc:'Reload 20% faster',fn:function(){perks.push('quickReload')}},
 {name:'Piercing',desc:'Bullets pierce +1',fn:function(){perks.push('pierce')}},
-{name:'Shield Regen',desc:'Shield regens slowly',fn:function(){perks.push('shieldRegen')}}
+{name:'Shield Regen',desc:'Shield regens slowly',fn:function(){perks.push('shieldRegen')}},
+{name:'Explosive Rounds',desc:'Bullets explode on hit',fn:function(){perks.push('explosive')}},
+{name:'Freeze Aura',desc:'Slow nearby enemies',fn:function(){perks.push('freezeAura')}},
+{name:'Berserker',desc:'More DMG at low HP',fn:function(){perks.push('berserker')}},
+{name:'Double XP',desc:'Gain 2x XP orbs',fn:function(){perks.push('doubleXP')}},
+{name:'Extra Life',desc:'+1 extra life',fn:function(){p.lives++;}},
+{name:'Glass Cannon',desc:'+50% DMG, -20% HP',fn:function(){p.dmg*=1.5;p.maxHp=Math.round(p.maxHp*0.8);p.hp=Math.min(p.hp,p.maxHp);}},
+{name:'Treasure Hunter',desc:'More chests spawn',fn:function(){perks.push('treasure')}},
+{name:'Thorns',desc:'Reflect 30% DMG taken',fn:function(){perks.push('thorns')}},
+{name:'Second Wind',desc:'Heal 30% on level up',fn:function(){perks.push('secondWind')}},
+{name:'Juggernaut',desc:'+30 HP, -10% SPD',fn:function(){p.maxHp+=30;p.hp+=30;p.spd*=0.9;}},
+{name:'Swift Strike',desc:'+15% fire rate',fn:function(){perks.push('swiftStrike')}},
+{name:'Corrosive Rounds',desc:'Bullets corrode armor',fn:function(){perks.push('corrodeRounds')}},
+{name:'Shield Burst',desc:'Explode when shield breaks',fn:function(){perks.push('shieldBurst')}},
+{name:'Lucky Crits',desc:'+10% crit chance',fn:function(){p.crit=Math.min((p.crit||0.05)+0.1,0.6);}},
+{name:'Adrenaline',desc:'Speed up after kill',fn:function(){perks.push('adrenaline')}}
 ];
 
 // Helper functions
@@ -126,13 +142,22 @@ if(state==='gameover'){state='title';return;}
 if(state==='victory'){state='title';return;}
 if(upgradeUI){
 var opts=['HP','SPD','DODGE','DMG'];
-for(var i=0;i<4;i++){var by=100+i*35;
+for(var i=0;i<opts.length;i++){var by=100+i*35;
 if(t.x>30&&t.x<210&&t.y>by&&t.y<by+28){
-if(i===0){p.maxHp+=8;p.hp=Math.min(p.hp+8,p.maxHp);}
-if(i===1){p.spd+=0.08;}
-if(i===2){p.dodge=Math.min(p.dodge+0.02,0.4);}
-if(i===3){p.dmg+=0.5;}
-p.upgPts--;if(p.upgPts<=0)upgradeUI=false;return;}}return;}
+var uid=opts[i].id;
+if(uid==='hp'){p.maxHp+=8;p.hp=Math.min(p.hp+8,p.maxHp);}
+else if(uid==='spd'){p.spd+=0.08;}
+else if(uid==='dodge'){p.dodge=Math.min(p.dodge+0.02,0.4);}
+else if(uid==='dmg'){p.dmg+=0.5;}
+else if(uid==='shield'){p.maxSh+=5;p.sh=Math.min(p.sh+5,p.maxSh);}
+else if(uid==='crit'){p.crit=Math.min((p.crit||0.05)+0.03,0.5);}
+else if(uid==='critdmg'){p.critMult=(p.critMult||1.5)+0.2;}
+else if(uid==='armor'){p.armor=Math.min((p.armor||0)+0.05,0.5);}
+else if(uid==='magnet'){p.magnet+=15;}
+else if(uid==='reload'){p.reloadSpd=Math.min((p.reloadSpd||0)+0.1,0.5);}
+else if(uid==='hpregen'){p.hpRegen=(p.hpRegen||0)+0.3;}
+else if(uid==='luck'){p.luck=Math.min((p.luck||0)+0.03,0.3);}
+p.upgPts--;curUpgradeOpts=[];if(p.upgPts<=0)upgradeUI=false;return;}}return;}
 if(perkUI){
 for(var i=0;i<3&&i<selectedPerks.length;i++){var by=90+i*50;
 if(t.x>20&&t.x<220&&t.y>by&&t.y<by+40){
@@ -174,13 +199,14 @@ p.y=Math.max(p.r,Math.min(ARENA_H-p.r,p.y));}
 for(var i=xpOrbs.length-1;i>=0;i--){var o=xpOrbs[i];
 var d=dist(p,o);if(d<p.magnet){var a=Math.atan2(p.y-o.y,p.x-o.x);
 o.x+=Math.cos(a)*3;o.y+=Math.sin(a)*3;}
-if(d<10){p.xp+=o.val;xpOrbs.splice(i,1);checkLevelUp();}}
+if(d<10){var xpVal=o.val;if(perks.indexOf('doubleXP')>=0)xpVal*=2;p.xp+=xpVal;xpOrbs.splice(i,1);checkLevelUp();}}
 // Check nearby items
 nearItem=null;
 for(var i=0;i<drops.length;i++){if(dist(p,drops[i])<25){nearItem=drops[i];break;}}
 for(var i=0;i<chests.length;i++){if(dist(p,chests[i])<25){openChest(chests[i]);break;}}
 // Shield regen perk
 if(perks.indexOf('shieldRegen')>=0&&frame%60===0&&p.sh<p.maxSh){p.sh=Math.min(p.sh+1,p.maxSh);}
+if((p.hpRegen||0)>0&&frame%60===0&&p.hp<p.maxHp){p.hp=Math.min(p.hp+p.hpRegen,p.maxHp);}
 // Auto-shoot
 autoShoot();}
 
@@ -188,7 +214,8 @@ autoShoot();}
 function autoShoot(){
 var gun=p.guns[p.curGun];if(!gun)return;
 if(gun.reloading>0){gun.reloading--;if(gun.reloading<=0)gun.ammo=gun.mag;return;}
-if(gun.ammo<=0){gun.reloading=gun.reload;if(perks.indexOf('quickReload')>=0)gun.reloading=Math.floor(gun.reloading*0.8);return;}
+if(gun.ammo<=0){gun.reloading=gun.reload;if(perks.indexOf('quickReload')>=0)gun.reloading=Math.floor(gun.reloading*0.8);
+if((p.reloadSpd||0)>0)gun.reloading=Math.floor(gun.reloading*(1-p.reloadSpd));return;}
 p.fireTimer--;if(p.fireTimer>0)return;
 var nearest=null,nd=999;
 for(var i=0;i<enemies.length;i++){var d=dist(p,enemies[i]);if(d<nd){nd=d;nearest=enemies[i];}}
@@ -197,16 +224,16 @@ var ang=Math.atan2(nearest.y-p.y,nearest.x-p.x);
 for(var b=0;b<gun.bullets;b++){
 var a=ang+rng(-gun.spread,gun.spread);
 bullets.push({x:p.x,y:p.y,vx:Math.cos(a)*gun.spd,vy:Math.sin(a)*gun.spd,
-dmg:Math.round(gun.dmg*p.dmg),life:60,pierce:gun.pierce?2:1,
+dmg:Math.round(gun.dmg*p.dmg*(perks.indexOf('berserker')>=0&&p.hp<p.maxHp*0.4?1.5:1)),life:60,pierce:gun.pierce?2:1,
 explode:gun.explode||0,chain:gun.chain||0,burn:gun.burn||0,
 color:gun.color,r:gun.explode?3:2});}
-gun.ammo--;p.fireTimer=gun.rate;}
+gun.ammo--;p.fireTimer=perks.indexOf('swiftStrike')>=0?Math.floor(gun.rate*0.85):gun.rate;}
 
 // Level up
 function checkLevelUp(){
 while(p.xp>=p.xpReq&&p.lvl<MAX_LVL){
 p.xp-=p.xpReq;p.lvl++;p.xpReq=Math.floor(20*Math.pow(1.12,p.lvl-1)+3*(p.lvl-1));
-p.maxHp+=4;p.hp=Math.min(p.hp+4,p.maxHp);
+p.maxHp+=4;p.hp=Math.min(p.hp+4,p.maxHp);if(perks.indexOf('secondWind')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.3),p.maxHp);}
 p.maxSh+=2;p.sh=Math.min(p.sh+2,p.maxSh);
 p.dmg+=0.01;p.upgPts++;
 if(p.lvl%5===0){p.perkPts++;showPerkUI();}
@@ -230,9 +257,13 @@ bullets.splice(i,1);}break;}}}}
 function hitEnemy(e,dmg,b){
 if(e.phase&&Math.random()<0.3){dmgNums.push({x:e.x,y:e.y-e.r,val:'PHASE',life:25,color:'#0ff'});return;}
 if(e.armor>0){dmg=Math.max(1,Math.round(dmg*(1-e.armor)));}
+var isCrit=Math.random()<(p.crit||0.05);if(isCrit){dmg=Math.round(dmg*(p.critMult||1.5));dmgNums.push({x:e.x,y:e.y-e.r-8,val:'CRIT!',life:20,color:'#ff0'});}
+if(p.armor&&p.armor>0){}
 e.hp-=dmg;e.flash=6;
+if(perks.indexOf('explosive')>=0&&b){for(var ei=0;ei<enemies.length;ei++){var ee=enemies[ei];if(ee!==e&&dist(e,ee)<35){hitEnemy(ee,Math.round(dmg*0.4),null);}}}
+
 if(gun&&gun.slow){e.slowT=gun.slowDur||120;e.slowMult=gun.slow||0.5;}
-if(gun&&gun.corrode){e.corrodeMult=(e.corrodeMult||1)*(gun.corrodeMult||1.15);}
+if((gun&&gun.corrode)||(b&&b.corrode)){e.corrodeMult=(e.corrodeMult||1)*((gun&&gun.corrodeMult)||((b&&b.corrodeMult)||1.15));}
 if(gun&&gun.burn&&gun.burnDmg){e.burnT=180;e.burnDmg=gun.burnDmg;}
 dmgNums.push({x:e.x,y:e.y-e.r,val:dmg,life:30,color:'#fff'});
 if(b&&b.burn){e.burnT=120;}
@@ -246,10 +277,12 @@ function killEnemy(e){
 var idx=enemies.indexOf(e);if(idx>=0)enemies.splice(idx,1);
 if(e.type==='splitter'){for(var si=0;si<2;si++){var sa=rng(0,Math.PI*2);spawnEnemy('splitling',e.x+Math.cos(sa)*15,e.y+Math.sin(sa)*15);}}
 xpOrbs.push({x:e.x,y:e.y,val:e.type==='boss'?50:e.type==='mini'?20:5+round});
-if(Math.random()<0.08){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
+if(Math.random()<0.08+(p.luck||0)){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
 var wdc=e.type==='boss'?0.25:e.type==='mini'?0.15:0.08;if(Math.random()<wdc){var dg=makeGun(round);drops.push({x:e.x,y:e.y,type:'weapon',gun:dg,glow:0});}
 var cdc=e.type==='boss'?0.20:0.05;if(Math.random()<cdc){chests.push({x:e.x,y:e.y,glow:0});}
 if(perks.indexOf('vamp')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.02),p.maxHp);}
+if(perks.indexOf('lightning')>=0){var chainDmg=Math.round(p.dmg*2);var chainRange=80;for(var li=0;li<enemies.length&&li<3;li++){var le=enemies[li];if(le&&dist({x:e.x,y:e.y},le)<chainRange){hitEnemy(le,chainDmg,null);dmgNums.push({x:le.x,y:le.y-le.r,val:chainDmg,life:20,color:'#4af'});}}}
+if(perks.indexOf('adrenaline')>=0){p.adrenalineT=120;}
 for(var i=0;i<3;i++){particles.push({x:e.x,y:e.y,vx:rng(-2,2),vy:rng(-2,2),life:15,color:e.color,r:2});}}
 
 // Explosions
@@ -276,7 +309,8 @@ if(dist(e,p)<e.r+p.r&&p.invT<=0){
 if(Math.random()<p.dodge){dmgNums.push({x:p.x,y:p.y-12,val:'DODGE',life:25,color:'#0ff'});continue;}
 damagePlayer(e.dmg);}
 // Fire aura perk
-if(perks.indexOf('fire')>=0&&dist(e,p)<40){if(frame%30===0){hitEnemy(e,3,null);}}}}
+if(perks.indexOf('fire')>=0&&dist(e,p)<40){if(frame%30===0){hitEnemy(e,3,null);}}
+if(perks.indexOf('freezeAura')>=0&&dist(e,p)<50){e.slowT=Math.max(e.slowT||0,30);e.slowMult=0.5;}}}
 
 // Damage player
 function damagePlayer(dmg){
@@ -295,7 +329,7 @@ if(pp.poison&&dist(p,pp)<pp.r&&p.invT<=0&&frame%20===0){damagePlayer(2);}}}
 function updateRound(){
 if(enemies.length===0&&waveSpawned){
 roundClear=true;waveSpawned=false;roundTimer=90;
-if(round%2===0&&Math.random()<0.8){
+if(round%2===0&&Math.random()<(perks.indexOf('treasure')>=0?0.95:0.8)){
 chests.push({x:rng(50,ARENA_W-50),y:rng(50,ARENA_H-50),glow:0});}
 if(round===20){state='victory';return;}}
 if(roundClear){roundTimer--;if(roundTimer<=0){round++;roundClear=false;spawnWave();}}}
@@ -540,9 +574,15 @@ X.fillStyle='#FE5000';X.font='bold 11px sans-serif';X.textAlign='center';
 X.fillText('LEVEL UP!',W/2,50);
 X.fillStyle='#fff';X.font='8px sans-serif';
 X.fillText('Choose an upgrade ('+p.upgPts+' pts)',W/2,70);
-var opts=[{n:'+ MAX HP',d:'+8 HP',c:'#f44'},{n:'+ SPEED',d:'+0.08 SPD',c:'#4f4'},
-{n:'+ DODGE',d:'+2% Dodge',c:'#4ff'},{n:'+ DAMAGE',d:'+0.5 DMG',c:'#fa0'}];
-for(var i=0;i<4;i++){var by=100+i*35;
+var allUpgrades=[{n:'+ MAX HP',d:'+8 HP',c:'#f44',id:'hp'},{n:'+ SPEED',d:'+0.08 SPD',c:'#4f4',id:'spd'},
+{n:'+ DODGE',d:'+2% Dodge',c:'#4ff',id:'dodge'},{n:'+ DAMAGE',d:'+0.5 DMG',c:'#fa0',id:'dmg'},
+{n:'+ SHIELD',d:'+5 Shield',c:'#48f',id:'shield'},{n:'+ CRIT %',d:'+3% Crit',c:'#ff0',id:'crit'},
+{n:'+ CRIT DMG',d:'+0.2x Crit',c:'#f80',id:'critdmg'},{n:'+ ARMOR',d:'+5% Reduce',c:'#888',id:'armor'},
+{n:'+ MAGNET',d:'+15 Range',c:'#af0',id:'magnet'},{n:'+ RELOAD',d:'+10% Reload',c:'#0af',id:'reload'},
+{n:'+ HP REGEN',d:'+0.3/s Heal',c:'#f4a',id:'hpregen'},{n:'+ LUCK',d:'+3% Luck',c:'#ff0',id:'luck'}];
+if(!curUpgradeOpts||curUpgradeOpts.length===0){var pool=allUpgrades.slice();curUpgradeOpts=[];for(var ui=0;ui<4&&pool.length>0;ui++){var uidx=ri(0,pool.length-1);curUpgradeOpts.push(pool[uidx]);pool.splice(uidx,1);}}
+var opts=curUpgradeOpts;
+for(var i=0;i<opts.length;i++){var by=100+i*35;
 X.fillStyle='#222';X.fillRect(30,by,180,28);
 X.strokeStyle=opts[i].c;X.strokeRect(30,by,180,28);
 X.fillStyle=opts[i].c;X.font='bold 8px sans-serif';X.fillText(opts[i].n,W/2,by+12);
