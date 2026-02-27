@@ -62,14 +62,14 @@ function giveStartGun(){p.guns[0]=makeGun(1);p.guns[0].rarity=0;p.guns[0].name='
 
 // Enemy spawning
 function spawnEnemy(type,x,y){
-var hp=10+round*3+(type==='fast'?-2:type==='toxic'?5:type==='mini'?80+round*10:type==='boss'?300+round*20:0);
+var hp=10+round*3+(type==='fast'?-2:type==='toxic'?5:type==='tank'?40+round*8:type==='ghost'?-4:type==='splitter'?15+round*4:type==='splitling'?-5:type==='mini'?80+round*10:type==='boss'?300+round*20:0);
 hp*=(1+Math.floor(round/2)*0.15);
-var spd=type==='fast'?1.2:type==='boss'?0.5:type==='mini'?0.7:0.6+round*0.01;
-var r=type==='boss'?18:type==='mini'?12:type==='toxic'?7:6;
-var clr=type==='fast'?'#f44':type==='toxic'?'#0f0':type==='mini'?'#f80':type==='boss'?'#f00':'#e44';
-var dmg=type==='boss'?15:type==='mini'?8:5;
+var spd=type==='fast'?1.2:type==='boss'?0.5:type==='mini'?0.7:type==='tank'?0.35:type==='ghost'?0.9:type==='splitter'?0.55:type==='splitling'?1.0:0.6+round*0.01;
+var r=type==='boss'?18:type==='mini'?12:type==='tank'?10:type==='toxic'?7:type==='splitter'?8:type==='splitling'?4:type==='ghost'?6:6;
+var clr=type==='fast'?'#f44':type==='toxic'?'#0f0':type==='mini'?'#f80':type==='boss'?'#f00':type==='tank'?'#80f':type==='ghost'?'#0ff':type==='splitter'?'#ff0':type==='splitling'?'#cc0':'#e44';
+var dmg=type==='boss'?15:type==='mini'?8:type==='tank'?10:type==='ghost'?4:type==='splitter'?6:type==='splitling'?3:5;
 enemies.push({x:x,y:y,hp:hp,maxHp:hp,spd:spd,r:r,type:type,color:clr,dmg:dmg,
-atkTimer:0,poisonTimer:0,flash:0});}
+atkTimer:0,poisonTimer:0,flash:0,armor:type==='tank'?0.5:0,phase:type==='ghost'?1:0,teleTimer:type==='ghost'?ri(60,120):0});}
 function spawnWave(){
 var count=5+round*2+ri(0,round);
 for(var i=0;i<count;i++){
@@ -77,7 +77,7 @@ var ang=rng(0,Math.PI*2),d=rng(150,300);
 var ex=p.x+Math.cos(ang)*d,ey=p.y+Math.sin(ang)*d;
 ex=Math.max(20,Math.min(ARENA_W-20,ex));ey=Math.max(20,Math.min(ARENA_H-20,ey));
 var r=Math.random();
-var type=r<0.1&&round>3?'fast':r<0.15&&round>5?'toxic':'basic';
+var type=r<0.07&&round>3?'fast':r<0.12&&round>5?'toxic':r<0.18&&round>4?'ghost':r<0.24&&round>7?'tank':r<0.30&&round>8?'splitter':'basic';
 spawnEnemy(type,ex,ey);}
 if(round%5===0&&round<20){var a=rng(0,Math.PI*2);spawnEnemy('mini',p.x+Math.cos(a)*200,p.y+Math.sin(a)*200);}
 if(round===20){spawnEnemy('boss',ARENA_W/2,100);}
@@ -226,6 +226,8 @@ bullets.splice(i,1);}break;}}}}
 
 // Hit enemy
 function hitEnemy(e,dmg,b){
+if(e.phase&&Math.random()<0.3){dmgNums.push({x:e.x,y:e.y-e.r,val:'PHASE',life:25,color:'#0ff'});return;}
+if(e.armor>0){dmg=Math.max(1,Math.round(dmg*(1-e.armor)));}
 e.hp-=dmg;e.flash=6;
 dmgNums.push({x:e.x,y:e.y-e.r,val:dmg,life:30,color:'#fff'});
 if(b&&b.burn){e.burnT=120;}
@@ -237,6 +239,7 @@ particles.push({x:e.x,y:e.y,x2:nearest.x,y2:nearest.y,life:8,color:'#44f'});}}
 if(e.hp<=0){killEnemy(e);}}
 function killEnemy(e){
 var idx=enemies.indexOf(e);if(idx>=0)enemies.splice(idx,1);
+if(e.type==='splitter'){for(var si=0;si<2;si++){var sa=rng(0,Math.PI*2);spawnEnemy('splitling',e.x+Math.cos(sa)*15,e.y+Math.sin(sa)*15);}}
 xpOrbs.push({x:e.x,y:e.y,val:e.type==='boss'?50:e.type==='mini'?20:5+round});
 if(Math.random()<0.03){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
 if(perks.indexOf('vamp')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.02),p.maxHp);}
@@ -257,6 +260,10 @@ e.x=Math.max(e.r,Math.min(ARENA_W-e.r,e.x));
 e.y=Math.max(e.r,Math.min(ARENA_H-e.r,e.y));
 // Toxic trail
 if(e.type==='toxic'&&frame%30===0){particles.push({x:e.x,y:e.y,vx:0,vy:0,life:90,color:'#0a0',r:8,poison:1});}
+// Ghost teleport
+if(e.type==='ghost'){e.teleTimer--;if(e.teleTimer<=0){var ta=rng(0,Math.PI*2),td=rng(30,60);e.x+=Math.cos(ta)*td;e.y+=Math.sin(ta)*td;e.x=Math.max(e.r,Math.min(ARENA_W-e.r,e.x));e.y=Math.max(e.r,Math.min(ARENA_H-e.r,e.y));e.teleTimer=ri(50,100);for(var ti=0;ti<5;ti++){particles.push({x:e.x,y:e.y,vx:rng(-1,1),vy:rng(-1,1),life:15,color:'#0ff',r:2});}}}
+// Tank stomp
+if(e.type==='tank'&&dist(e,p)<e.r+p.r+5&&frame%60===0){for(var si=0;si<8;si++){particles.push({x:e.x,y:e.y,vx:Math.cos(si*0.785)*2,vy:Math.sin(si*0.785)*2,life:20,color:'#80f',r:3});}}
 // Hit player
 if(dist(e,p)<e.r+p.r&&p.invT<=0){
 if(Math.random()<p.dodge){dmgNums.push({x:p.x,y:p.y-12,val:'DODGE',life:25,color:'#0ff'});continue;}
@@ -337,6 +344,8 @@ for(var i=0;i<enemies.length;i++){var e=enemies[i];
 var sx=e.x-camX,sy=e.y-camY;
 if(sx<-20||sx>W+20||sy<-20||sy>H+20)continue;
 X.fillStyle=e.flash>0?'#fff':e.color;
+if(e.type==='ghost'){X.globalAlpha=0.4+Math.sin(frame*0.15)*0.3;}
+if(e.type==='tank'){X.save();X.strokeStyle='#60c';X.lineWidth=2;X.beginPath();X.arc(sx,sy,e.r+3,0,Math.PI*2);X.stroke();X.restore();}
 if(e.type==='boss'){X.beginPath();X.arc(sx,sy,e.r,0,Math.PI*2);X.fill();
 X.fillStyle='#800';X.beginPath();X.arc(sx-5,sy-4,3,0,Math.PI*2);X.fill();
 X.beginPath();X.arc(sx+5,sy-4,3,0,Math.PI*2);X.fill();
@@ -345,7 +354,8 @@ X.beginPath();X.arc(sx+5,sy-4,1.5,0,Math.PI*2);X.fill();}
 else{X.beginPath();X.arc(sx,sy,e.r,0,Math.PI*2);X.fill();}
 // HP bar
 if(e.hp<e.maxHp){var bw=e.r*2;X.fillStyle='#400';X.fillRect(sx-bw/2,sy-e.r-5,bw,3);
-X.fillStyle='#f00';X.fillRect(sx-bw/2,sy-e.r-5,bw*(e.hp/e.maxHp),3);}}}
+X.fillStyle='#f00';X.fillRect(sx-bw/2,sy-e.r-5,bw*(e.hp/e.maxHp),3);}
+X.globalAlpha=1;}}
 
 // Draw bullets
 function drawBullets(){
