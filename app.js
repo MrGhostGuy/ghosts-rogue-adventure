@@ -76,7 +76,7 @@ if(base.explode)g.explode=1;if(base.chain)g.chain=1;if(base.pierce)g.pierce=1;if
 if(rar>=2&&Math.random()<0.3){var elems=["Freezing","Lightning","Fire","Corrosion"];var elemClrs=["#0ff","#ff0","#f40","#0f0"];var ei=ri(0,elems.length-1);g.element=elems[ei];g.elemColor=elemClrs[ei];g.name=g.element+" "+g.name;if(g.element==="Freezing"){g.slow=0.5;g.slowDur=120;}if(g.element==="Lightning"){g.chain=1;g.chainDmg=Math.round(g.dmg*0.4);}if(g.element==="Fire"){g.burn=1;g.burnDmg=Math.round(g.dmg*0.2);}if(g.element==="Corrosion"){g.corrode=1;g.corrodeMult=1.15;}}
 if(rar>=2&&Math.random()<0.4){var bonuses=["Fast Reload","Rapid Fire","Piercing","Big Mag","High Velocity"];var bi=ri(0,bonuses.length-1);g.bonus=bonuses[bi];if(g.bonus==="Fast Reload"){g.reload=Math.max(8,Math.round(g.reload*0.6));}if(g.bonus==="Rapid Fire"){g.rate=Math.max(1,Math.round(g.rate*0.6));}if(g.bonus==="Piercing"){g.pierce=1;}if(g.bonus==="Big Mag"){g.mag=Math.round(g.mag*1.8);g.ammo=g.mag;}if(g.bonus==="High Velocity"){g.spd=g.spd*1.5;g.dmg=Math.round(g.dmg*1.2);}}
 return g;}
-function giveStartGun(){var base=GUNS[0];p.guns[0]={name:base.name,dmg:base.dmg,rate:base.rate,reload:base.reload,mag:base.mag,spread:base.spread,bullets:base.bullets,spd:base.spd,color:base.color,snd:base.snd,ammo:base.mag,reloading:0,rarity:0};}
+function giveStartGun(){var base=GUNS[0];p.guns[0]={name:base.name,dmg:base.dmg,rate:base.rate,reload:base.reload,mag:base.mag,spread:base.spread,bullets:base.bullets,spd:base.spd,color:base.color,snd:base.snd,ammo:base.mag,reloading:0,rarity:0,spread:base.spread,mag:base.mag,explode:base.explode||0,chain:base.chain||0,burn:base.burn||0,pierce:base.pierce||0};}
 
 // Enemy spawning
 function spawnEnemy(type,x,y){
@@ -226,7 +226,7 @@ var a=ang+rng(-gun.spread,gun.spread);
 bullets.push({x:p.x,y:p.y,vx:Math.cos(a)*gun.spd,vy:Math.sin(a)*gun.spd,
 dmg:Math.round(gun.dmg*p.dmg*(perks.indexOf('berserker')>=0&&p.hp<p.maxHp*0.4?1.5:1)),life:60,pierce:gun.pierce?2:1,
 explode:gun.explode||0,chain:gun.chain||0,burn:gun.burn||0,
-color:gun.color,r:gun.explode?3:2});}
+color:gun.color,r:gun.explode?3:2,slow:gun.slow||0,slowDur:gun.slowDur||0,corrode:gun.corrode||0,corrodeMult:gun.corrodeMult||0,burnDmg:gun.burnDmg||0});}
 gun.ammo--;p.fireTimer=perks.indexOf('swiftStrike')>=0?Math.floor(gun.rate*0.85):gun.rate;}
 
 // Level up
@@ -258,13 +258,13 @@ function hitEnemy(e,dmg,b){
 if(e.phase&&Math.random()<0.3){dmgNums.push({x:e.x,y:e.y-e.r,val:'PHASE',life:25,color:'#0ff'});return;}
 if(e.armor>0){dmg=Math.max(1,Math.round(dmg*(1-e.armor)));}
 var isCrit=Math.random()<(p.crit||0.05);if(isCrit){dmg=Math.round(dmg*(p.critMult||1.5));dmgNums.push({x:e.x,y:e.y-e.r-8,val:'CRIT!',life:20,color:'#ff0'});}
-if(p.armor&&p.armor>0){}
+
 e.hp-=dmg;e.flash=6;
 if(perks.indexOf('explosive')>=0&&b){for(var ei=0;ei<enemies.length;ei++){var ee=enemies[ei];if(ee!==e&&dist(e,ee)<35){hitEnemy(ee,Math.round(dmg*0.4),null);}}}
 
-if(gun&&gun.slow){e.slowT=gun.slowDur||120;e.slowMult=gun.slow||0.5;}
-if((gun&&gun.corrode)||(b&&b.corrode)){e.corrodeMult=(e.corrodeMult||1)*((gun&&gun.corrodeMult)||((b&&b.corrodeMult)||1.15));}
-if(gun&&gun.burn&&gun.burnDmg){e.burnT=180;e.burnDmg=gun.burnDmg;}
+if(b&&b.slow){e.slowT=b.slowDur||120;e.slowMult=b.slow||0.5;}
+if((b&&b.corrode)||perks.indexOf('corrodeRounds')>=0){e.corrodeMult=(e.corrodeMult||1)*(b&&b.corrodeMult?b.corrodeMult:1.15);}
+if(b&&b.burn&&b.burnDmg){e.burnT=180;e.burnDmg=b.burnDmg;}
 dmgNums.push({x:e.x,y:e.y-e.r,val:dmg,life:30,color:'#fff'});
 if(b&&b.burn){e.burnT=120;}
 if(b&&b.chain&&enemies.length>1){
@@ -307,14 +307,14 @@ if(e.type==='tank'&&dist(e,p)<e.r+p.r+5&&frame%60===0){for(var si=0;si<8;si++){p
 // Hit player
 if(dist(e,p)<e.r+p.r&&p.invT<=0){
 if(Math.random()<p.dodge){dmgNums.push({x:p.x,y:p.y-12,val:'DODGE',life:25,color:'#0ff'});continue;}
-damagePlayer(e.dmg);}
+damagePlayer(e.dmg);if(perks.indexOf('thorns')>=0){hitEnemy(e,Math.round(e.dmg*0.3),null);}}
 // Fire aura perk
 if(perks.indexOf('fire')>=0&&dist(e,p)<40){if(frame%30===0){hitEnemy(e,3,null);}}
 if(perks.indexOf('freezeAura')>=0&&dist(e,p)<50){e.slowT=Math.max(e.slowT||0,30);e.slowMult=0.5;}}}
 
 // Damage player
 function damagePlayer(dmg){
-if(p.sh>0){var absorbed=Math.min(p.sh,dmg);p.sh-=absorbed;dmg-=absorbed;}
+if(p.sh>0){var hadSh=p.sh;var absorbed=Math.min(p.sh,dmg);p.sh-=absorbed;dmg-=absorbed;if(hadSh>0&&p.sh<=0&&perks.indexOf('shieldBurst')>=0){addExplosion(p.x,p.y,50,Math.round(hadSh*2));}}
 p.hp-=dmg;p.invT=30;
 dmgNums.push({x:p.x,y:p.y-15,val:dmg,life:25,color:'#f44'});
 if(p.hp<=0){
