@@ -11,7 +11,7 @@ var RARITY_MULT=[1,1.3,1.7,2.2,3];
 var RARITY_CHANCE=[0.45,0.28,0.15,0.08,0.04];
 // Player state
 var p={x:400,y:400,r:8,hp:100,maxHp:100,sh:0,maxSh:30,spd:1.8,dmg:1,dodge:0,
-lvl:1,xp:0,xpReq:20,upgPts:0,perkPts:0,lives:2,magnet:40,
+lvl:1,xp:0,xpReq:30,upgPts:0,perkPts:0,lives:2,magnet:40,
 guns:[null,null],curGun:0,fireTimer:0,invT:0,crit:0.05,critMult:1.5,armor:0,hpRegen:0,luck:0,reloadSpd:0};
 
 // Weapon definitions
@@ -29,7 +29,7 @@ var GUNS=[
 ];
 
 // Game arrays and state
-var enemies=[],bullets=[],xpOrbs=[],drops=[],chests=[],explosions=[],dmgNums=[],particles=[];
+var enemies=[],bullets=[],xpOrbs=[],drops=[],chests=[],explosions=[],dmgNums=[],particles=[],enemyBullets=[];
 var round=1,enemiesLeft=0,roundClear=true,roundTimer=0,waveSpawned=false;
 var joy={active:false,sx:0,sy:0,cx:0,cy:0,dx:0,dy:0};
 var swapBtn={x:205,y:252,r:18};
@@ -80,16 +80,16 @@ function giveStartGun(){var base=GUNS[0];p.guns[0]={name:base.name,dmg:base.dmg,
 
 // Enemy spawning
 function spawnEnemy(type,x,y){
-var hp=10+round*3+(type==='fast'?-2:type==='toxic'?5:type==='tank'?40+round*8:type==='ghost'?-4:type==='splitter'?15+round*4:type==='splitling'?-5:type==='mini'?80+round*10:type==='boss'?300+round*20:0);
-hp*=(1+Math.floor(round/2)*0.15);
-var spd=type==='fast'?1.2:type==='boss'?0.5:type==='mini'?0.7:type==='tank'?0.35:type==='ghost'?0.9:type==='splitter'?0.55:type==='splitling'?1.0:0.6+round*0.01;
-var r=type==='boss'?18:type==='mini'?12:type==='tank'?10:type==='toxic'?7:type==='splitter'?8:type==='splitling'?4:type==='ghost'?6:6;
+var hp=10+round*3+(type==='fast'?-2:type==='toxic'?5:type==='tank'?40+round*8:type==='ghost'?-4:type==='splitter'?15+round*4:type==='splitling'?-5:type==='mini'?80+round*10:type==='boss'?800+round*50:0);
+hp*=(1+Math.floor(round/2)*0.15);if(round>6){hp=Math.floor(hp*Math.pow(1.3,round-6));}
+var spd=type==='fast'?1.2:type==='boss'?0.8:type==='mini'?0.7:type==='tank'?0.35:type==='ghost'?0.9:type==='splitter'?0.55:type==='splitling'?1.0:0.6+round*0.01;
+var r=type==='boss'?22:type==='mini'?12:type==='tank'?10:type==='toxic'?7:type==='splitter'?8:type==='splitling'?4:type==='ghost'?6:6;
 var clr=type==='fast'?'#f44':type==='toxic'?'#0f0':type==='mini'?'#f80':type==='boss'?'#f00':type==='tank'?'#80f':type==='ghost'?'#0ff':type==='splitter'?'#ff0':type==='splitling'?'#cc0':'#e44';
-var dmg=type==='boss'?15:type==='mini'?8:type==='tank'?10:type==='ghost'?4:type==='splitter'?6:type==='splitling'?3:5;
+var dmg=type==='boss'?25:type==='mini'?8:type==='tank'?10:type==='ghost'?4:type==='splitter'?6:type==='splitling'?3:5;
 enemies.push({x:x,y:y,hp:hp,maxHp:hp,spd:spd,r:r,type:type,color:clr,dmg:dmg,
-atkTimer:0,poisonTimer:0,flash:0,armor:type==='tank'?0.5:0,phase:type==='ghost'?1:0,teleTimer:type==='ghost'?ri(60,120):0});}
+atkTimer:0,shootTimer:0,poisonTimer:0,flash:0,armor:type==='tank'?0.5:0,phase:type==='ghost'?1:0,teleTimer:type==='ghost'?ri(60,120):0});}
 function spawnWave(){
-var count=5+round*2+ri(0,round);
+var count=5+round*2+ri(0,round);if(round>6){count=Math.floor(count*Math.pow(1.25,round-6));}
 for(var i=0;i<count;i++){
 var ang=rng(0,Math.PI*2),d=rng(150,300);
 var ex=p.x+Math.cos(ang)*d,ey=p.y+Math.sin(ang)*d;
@@ -183,7 +183,7 @@ function resetGame(){
 p.x=ARENA_W/2;p.y=ARENA_H/2;p.hp=100;p.maxHp=100;p.sh=0;p.maxSh=30;
 p.spd=1.8;p.dmg=1;p.dodge=0;p.lvl=1;p.xp=0;p.xpReq=20;p.upgPts=0;p.perkPts=0;
 p.lives=2;p.magnet=40;p.curGun=0;p.fireTimer=0;p.invT=0;p.guns=[null,null];
-giveStartGun();round=1;enemies=[];bullets=[];xpOrbs=[];drops=[];chests=[];
+giveStartGun();round=1;enemies=[];bullets=[];xpOrbs=[];drops=[];chests=[];enemyBullets=[];
 explosions=[];dmgNums=[];particles=[];perks=[];roundClear=true;roundTimer=60;
 waveSpawned=false;upgradeUI=false;perkUI=false;pauseGame=false;}
 
@@ -232,7 +232,7 @@ gun.ammo--;p.fireTimer=perks.indexOf('swiftStrike')>=0?Math.floor(gun.rate*0.85)
 // Level up
 function checkLevelUp(){
 while(p.xp>=p.xpReq&&p.lvl<MAX_LVL){
-p.xp-=p.xpReq;p.lvl++;p.xpReq=Math.floor(20*Math.pow(1.12,p.lvl-1)+3*(p.lvl-1));
+p.xp-=p.xpReq;p.lvl++;p.xpReq=Math.floor(30*Math.pow(1.25,p.lvl-1)+8*(p.lvl-1)*(p.lvl-1));
 p.maxHp+=4;p.hp=Math.min(p.hp+4,p.maxHp);if(perks.indexOf('secondWind')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.3),p.maxHp);}
 p.maxSh+=2;p.sh=Math.min(p.sh+2,p.maxSh);
 p.dmg+=0.01;p.upgPts++;
@@ -276,10 +276,10 @@ if(e.hp<=0){killEnemy(e);}}
 function killEnemy(e){
 var idx=enemies.indexOf(e);if(idx>=0)enemies.splice(idx,1);
 if(e.type==='splitter'){for(var si=0;si<2;si++){var sa=rng(0,Math.PI*2);spawnEnemy('splitling',e.x+Math.cos(sa)*15,e.y+Math.sin(sa)*15);}}
-xpOrbs.push({x:e.x,y:e.y,val:e.type==='boss'?50:e.type==='mini'?20:5+round});
-if(Math.random()<0.08+(p.luck||0)){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
-var wdc=e.type==='boss'?0.25:e.type==='mini'?0.15:0.08;if(Math.random()<wdc){var dg=makeGun(round);drops.push({x:e.x,y:e.y,type:'weapon',gun:dg,glow:0});}
-var cdc=e.type==='boss'?0.20:0.05;if(Math.random()<cdc){chests.push({x:e.x,y:e.y,glow:0});}
+xpOrbs.push({x:e.x,y:e.y,val:e.type==='boss'?30:e.type==='mini'?12:3+Math.floor(round/2)});
+if(Math.random()<0.02+(p.luck||0)*0.3){drops.push({x:e.x,y:e.y,type:'health',val:Math.round(p.maxHp*0.2),glow:0});}
+var wdc=e.type==='boss'?0.15:e.type==='mini'?0.08:0.02;if(Math.random()<wdc){var dg=makeGun(round);drops.push({x:e.x,y:e.y,type:'weapon',gun:dg,glow:0});}
+var cdc=e.type==='boss'?0.10:0.01;if(Math.random()<cdc){chests.push({x:e.x,y:e.y,glow:0});}
 if(perks.indexOf('vamp')>=0){p.hp=Math.min(p.hp+Math.round(p.maxHp*0.02),p.maxHp);}
 if(perks.indexOf('lightning')>=0){var chainDmg=Math.round(p.dmg*2);var chainRange=80;for(var li=0;li<enemies.length&&li<3;li++){var le=enemies[li];if(le&&dist({x:e.x,y:e.y},le)<chainRange){hitEnemy(le,chainDmg,null);dmgNums.push({x:le.x,y:le.y-le.r,val:chainDmg,life:20,color:'#4af'});}}}
 if(perks.indexOf('adrenaline')>=0){p.adrenalineT=120;}
@@ -295,7 +295,7 @@ if(e.flash>0)e.flash--;
 if(e.burnT&&e.burnT>0){e.burnT--;if(frame%20===0){e.hp-=2;dmgNums.push({x:e.x,y:e.y-5,val:2,life:20,color:'#f80'});
 if(e.hp<=0){killEnemy(e);continue;}}}
 var a=Math.atan2(p.y-e.y,p.x-e.x);
-e.x+=Math.cos(a)*e.spd;e.y+=Math.sin(a)*e.spd;
+e.x+=Math.cos(a)*e.spd;e.y+=Math.sin(a)*e.spd;if((e.type==='boss'||e.type==='tank'||e.type==='mini')&&e.shootTimer<=0){var ba=Math.atan2(p.y-e.y,p.x-e.x);enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(ba)*1.5,vy:Math.sin(ba)*1.5,dmg:e.type==='boss'?12:e.type==='tank'?6:4,life:180,r:e.type==='boss'?5:3,color:e.type==='boss'?'#ff4444':'#ff8800'});e.shootTimer=e.type==='boss'?60:90;}else{e.shootTimer--;}
 e.x=Math.max(e.r,Math.min(ARENA_W-e.r,e.x));
 e.y=Math.max(e.r,Math.min(ARENA_H-e.r,e.y));
 // Toxic trail
@@ -343,14 +343,16 @@ ex.r=ex.maxR*(1-ex.life/12);ex.life--;if(ex.life<=0)explosions.splice(i,1);}
 for(var i=dmgNums.length-1;i>=0;i--){dmgNums[i].y-=0.5;dmgNums[i].life--;if(dmgNums[i].life<=0)dmgNums.splice(i,1);}
 for(var i=drops.length-1;i>=0;i--){drops[i].glow=(drops[i].glow+0.05)%(Math.PI*2);}
 for(var i=chests.length-1;i>=0;i--){chests[i].glow=(chests[i].glow+0.03)%(Math.PI*2);}}
+function updateEnemyBullets(){for(var i=enemyBullets.length-1;i>=0;i--){var eb=enemyBullets[i];eb.x+=eb.vx;eb.y+=eb.vy;eb.life--;if(eb.life<=0||eb.x<0||eb.x>ARENA_W||eb.y<0||eb.y>ARENA_H){enemyBullets.splice(i,1);continue;}var dx=eb.x-p.x,dy=eb.y-p.y,dd=Math.sqrt(dx*dx+dy*dy);if(dd<eb.r+p.r&&p.invT<=0){damagePlayer(eb.dmg);enemyBullets.splice(i,1);}}}
 // Main update
 function update(){
 if(state!=='play'||pauseGame||upgradeUI||perkUI)return;
-frame++;updatePlayer();updateBullets();updateEnemies();checkPoison();updateRound();updateEffects();
+frame++;updatePlayer();updateBullets();updateEnemies();updateEnemyBullets();checkPoison();updateRound();updateEffects();
 camX=p.x-W/2;camY=p.y-H/2;
 camX=Math.max(0,Math.min(ARENA_W-W,camX));
 camY=Math.max(0,Math.min(ARENA_H-H,camY));}
 
+function drawEnemyBullets(){for(var i=0;i<enemyBullets.length;i++){var eb=enemyBullets[i];X.save();X.translate(eb.x-camX,eb.y-camY);X.fillStyle=eb.color;X.shadowColor=eb.color;X.shadowBlur=8;X.beginPath();X.arc(0,0,eb.r,0,Math.PI*2);X.fill();X.shadowBlur=0;X.restore();}}
 // Drawing functions
 function drawArena(){
 X.fillStyle='#1a1a2e';X.fillRect(0,0,W,H);
@@ -628,7 +630,7 @@ if(state==='gameover'){drawGameOver();return;}
 if(state==='victory'){drawVictory();return;}
 // Play state
 drawArena();
-drawXP();drawDrops();drawChests();drawEffects();drawBullets();drawEnemies();
+drawXP();drawDrops();drawChests();drawEffects();drawBullets();drawEnemyBullets();drawEnemies();
 drawPlayer();drawDmgNums();drawItemPopup();
 drawHUD();drawJoystick();drawSwapBtn();
 if(upgradeUI)drawUpgradeUI();
